@@ -4,8 +4,7 @@ import {
   Plus, 
   ArrowUpRight, 
   ArrowDownLeft, 
-  Camera, 
-  Image as ImageIcon, 
+  Image as ImageIcon,
   History, 
   TrendingUp, 
   X, 
@@ -30,8 +29,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { useDropzone } from 'react-dropzone';
-import { scanReceipt, Transaction } from './lib/gemini';
+import { Transaction } from './lib/gemini';
 
 // Mock initial data - Empty for clean start
 const INITIAL_TRANSACTIONS: Transaction[] = [];
@@ -50,7 +48,6 @@ export default function App() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
-  const [isScanning, setIsScanning] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'invoices'>('dashboard');
   const [invoices, setInvoices] = useState<any[]>(() => {
     const saved = localStorage.getItem('impulse_invoices');
@@ -110,32 +107,6 @@ export default function App() {
     setTransactions([]);
     localStorage.removeItem('impulse_transactions');
     setIsResetModalOpen(false);
-  };
-
-  const handleImageScan = async (file: File) => {
-    setIsScanning(true);
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        const result = await scanReceipt(base64);
-        if (result.amount) {
-          addTransaction({
-            amount: result.amount,
-            type: result.type as 'income' | 'expense',
-            category: result.category || 'Sin categoría',
-            description: result.description || 'Transacción Escaneada',
-            date: new Date().toISOString(),
-            imageUrl: base64
-          });
-        }
-      };
-    } catch (error) {
-      console.error("Scan failed", error);
-    } finally {
-      setIsScanning(false);
-    }
   };
 
   return (
@@ -248,9 +219,7 @@ export default function App() {
               setIsModalOpen(false);
               setEditingTransaction(null);
             }} 
-            onScan={handleImageScan}
             onAdd={editingTransaction ? (data: any) => updateTransaction(editingTransaction.id, data) : addTransaction}
-            isScanning={isScanning}
             initialData={editingTransaction}
           />
         )}
@@ -1149,19 +1118,13 @@ function ResetConfirmationModal({ onClose, onConfirm }: { onClose: () => void, o
   );
 }
 
-function AddTransactionModal({ onClose, onScan, onAdd, isScanning, initialData }: any) {
+function AddTransactionModal({ onClose, onAdd, initialData }: any) {
   const [amount, setAmount] = useState(initialData ? initialData.amount.toString() : '');
   const [desc, setDesc] = useState(initialData ? initialData.description : '');
   const [type, setType] = useState<'income' | 'expense'>(initialData ? initialData.type : 'expense');
   const [category, setCategory] = useState(initialData ? initialData.category : 'General');
 
   const categories = ['General', 'Comida', 'Transporte', 'Salud', 'Vivienda', 'Ocio', 'Salario', 'Otros'];
-
-  const { getRootProps, getInputProps } = useDropzone({
-    onDrop: (files: any[]) => onScan(files[0]),
-    accept: { 'image/*': [] } as any,
-    multiple: false
-  } as any);
 
   const handleAdd = () => {
     const parsedAmount = parseFloat(amount);
@@ -1198,18 +1161,11 @@ function AddTransactionModal({ onClose, onScan, onAdd, isScanning, initialData }
         <div className="text-center">
           <h2 className="text-xl tracking-tight">{initialData ? 'Editar Transacción' : 'Nueva Transacción'}</h2>
           <p className="text-white/40 text-xs uppercase tracking-widest mt-1">
-            {initialData ? 'Ajusta los detalles del error' : 'Manual o Escaneo IA'}
+            {initialData ? 'Ajusta los detalles' : 'Ingreso Manual'}
           </p>
         </div>
 
-        {isScanning ? (
-          <div className="h-64 flex flex-col items-center justify-center gap-4">
-            <Loader2 className="w-12 h-12 text-apple-green animate-spin" />
-            <p className="text-apple-green font-bold animate-pulse">Impulse IA Analizando...</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex gap-2 p-1 bg-white/5 rounded-2xl">
+        <div className="flex gap-2 p-1 bg-white/5 rounded-2xl">
               <button 
                 onClick={() => setType('expense')}
                 className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${type === 'expense' ? 'bg-white/10 text-white' : 'text-white/40'}`}
@@ -1258,27 +1214,12 @@ function AddTransactionModal({ onClose, onScan, onAdd, isScanning, initialData }
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div {...getRootProps()} className="flex flex-col items-center justify-center gap-2 p-4 glass-card border-dashed border-white/20 cursor-pointer hover:bg-white/5 transition-colors">
-                <input {...getInputProps()} />
-                <Camera className="w-6 h-6 text-apple-green" />
-                <span className="text-[10px] uppercase font-bold tracking-widest text-white/60">Escanear</span>
-              </div>
-              <div {...getRootProps()} className="flex flex-col items-center justify-center gap-2 p-4 glass-card border-dashed border-white/20 cursor-pointer hover:bg-white/5 transition-colors">
-                <input {...getInputProps()} />
-                <ImageIcon className="w-6 h-6 text-apple-green" />
-                <span className="text-[10px] uppercase font-bold tracking-widest text-white/60">Subir</span>
-              </div>
-            </div>
-
             <button 
               onClick={handleAdd}
               className="w-full py-5 apple-gradient rounded-2xl text-premium-black font-bold uppercase tracking-widest shadow-lg shadow-apple-green/20"
             >
               {initialData ? 'Guardar Cambios' : 'Confirmar Transacción'}
             </button>
-          </>
-        )}
       </motion.div>
     </motion.div>
   );
