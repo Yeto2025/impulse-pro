@@ -1,0 +1,5 @@
+{
+  "name": "Impulse",
+  "description": "A premium expense and income tracker with AI-powered receipt scanning.",
+  "requestFramePermissions": ["camera"]
+}
