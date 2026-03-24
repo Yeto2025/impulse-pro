@@ -16,7 +16,8 @@ import {
   Download,
   Share2,
   Edit2,
-  Trash2
+  Trash2,
+  Palette
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -135,7 +136,9 @@ export default function App() {
             />
           </div>
           <div>
-            <h1 className="text-3xl tracking-tighter text-white">Impulse</h1>
+            <h1 className="text-3xl tracking-tighter text-white flex items-center gap-2">
+              Impulse 
+            </h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -177,6 +180,9 @@ export default function App() {
             }}
             onDeleteOpExp={(id: string) => {
               setOperatingExpenses(operatingExpenses.filter(e => e.id !== id));
+            }}
+            onUpdateInvoice={(updated: any) => {
+              setInvoices(invoices.map(inv => inv.id === updated.id ? updated : inv));
             }}
           />
         )}
@@ -557,11 +563,12 @@ function Dashboard({ balance, income, expenses, transactions, onEditTransaction,
   );
 }
 
-function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, onDelete, onDeleteOpExp }: any) {
+function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, onDelete, onDeleteOpExp, onUpdateInvoice }: any) {
   const [activeOptionsId, setActiveOptionsId] = useState<string | null>(null);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
   const [showOpExp, setShowOpExp] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState<any>(null);
 
   const stats = invoices.reduce((acc: any, inv: any) => {
     if (inv.type === 'invoice') {
@@ -616,22 +623,28 @@ function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, o
     const root = document.createElement('div');
     container.appendChild(root);
 
+    const gradient = invoice.gradientColors ? 
+      `linear-gradient(135deg, ${invoice.gradientColors[0]} 0%, ${invoice.gradientColors[1]} 100%)` : 
+      '#000';
+
     // We'll use a simplified version of the preview for the capture
     // but styled exactly like the reference image
+    const textColor = invoice.textColor || '#ffffff';
+
     root.innerHTML = `
       <div id="capture-invoice" style="
         width: 800px;
-        background: #000;
-        color: #fff;
+        background: ${gradient};
+        color: ${textColor};
         padding: 60px;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Cerebri Sans', 'Inter', sans-serif;
         border-radius: 40px;
         display: flex;
         flex-direction: column;
         position: relative;
       ">
         <div style="text-align: center; margin-bottom: 40px;">
-          <p style="font-size: 14px; font-weight: 900; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); text-transform: uppercase;">
+          <p style="font-size: 14px; font-weight: 900; letter-spacing: 0.2em; color: ${textColor}66; text-transform: uppercase;">
             ${format(new Date(invoice.date), "d 'DE' MMMM 'DE' yyyy", { locale: es }).toUpperCase()}
           </p>
         </div>
@@ -646,44 +659,50 @@ function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, o
             }
           </div>
           <div>
-            <h3 style="font-weight: 900; font-size: 36px; margin: 0; text-transform: uppercase; color: rgba(255,255,255,0.7);">${invoice.companyName}</h3>
-            <p style="font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.3); margin-top: 5px;">NIT: ${invoice.nit}</p>
+            <h3 style="font-weight: 900; font-size: 36px; margin: 0; text-transform: uppercase; color: ${textColor}b3;">${invoice.companyName}</h3>
+            <p style="font-size: 14px; font-weight: 700; color: ${textColor}4d; margin-top: 5px;">NIT: ${invoice.nit}</p>
           </div>
         </div>
 
-        <h2 style="font-size: 56px; font-weight: 900; letter-spacing: -0.04em; margin: 0 0 50px 0; line-height: 1;">${invoice.clientName}</h2>
+        <div style="margin-bottom: 50px;">
+          <h2 style="font-size: 56px; font-weight: 900; letter-spacing: -0.04em; margin: 0; line-height: 1;">${invoice.clientName}</h2>
+          ${invoice.clientPhone ? `<p style="font-size: 24px; font-weight: 700; color: ${textColor}66; margin-top: 10px;">${invoice.clientPhone}</p>` : ''}
+        </div>
 
         <div style="flex: 1; margin-bottom: 40px;">
           ${invoice.items.map((item: any) => `
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
               <div style="display: flex; gap: 25px;">
-                <span style="font-size: 28px; font-weight: 900; color: rgba(255,255,255,0.2);">${item.quantity}</span>
+                <span style="font-size: 28px; font-weight: 900; color: ${textColor}33;">${item.quantity}</span>
                 <p style="font-size: 32px; font-weight: 600; margin: 0; line-height: 1.2;">${item.description}</p>
+              </div>
+              <div style="text-align: right;">
+                <p style="font-size: 28px; font-weight: 700; margin: 0;">$${(parseFloat(item.unitPrice) || 0).toLocaleString()}</p>
               </div>
             </div>
           `).join('')}
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 40px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid ${textColor}1a; padding-top: 40px;">
           <div style="display: flex; flex-direction: column; gap: 40px;">
             <div>
-              <p style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); text-transform: uppercase; margin-bottom: 10px;">Fecha Entrega</p>
+              <p style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em; color: ${textColor}33; text-transform: uppercase; margin-bottom: 10px;">Fecha Entrega</p>
               <p style="font-size: 24px; font-weight: 700; margin: 0;">${format(new Date(invoice.deliveryDate), "dd/MM/yyyy h:mma")}</p>
             </div>
             <div>
-              <p style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); text-transform: uppercase; margin-bottom: 10px;">Estado</p>
+              <p style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em; color: ${textColor}33; text-transform: uppercase; margin-bottom: 10px;">Estado</p>
               <p style="font-size: 32px; font-weight: 900; margin: 0; letter-spacing: 0.05em;">${invoice.status}</p>
             </div>
           </div>
 
-          <div style="background: rgba(255,255,255,0.03); padding: 40px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.05); min-width: 250px;">
+          <div style="background: ${textColor}08; padding: 40px; border-radius: 32px; border: 1px solid ${textColor}0d; min-width: 250px;">
             <div style="text-align: right; margin-bottom: 30px;">
-              <p style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); text-transform: uppercase; margin-bottom: 10px;">Total</p>
+              <p style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em; color: ${textColor}33; text-transform: uppercase; margin-bottom: 10px;">Total</p>
               <p style="font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -0.04em;">$${invoice.total.toLocaleString()}</p>
             </div>
             <div style="text-align: right;">
-              <p style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); text-transform: uppercase; margin-bottom: 10px;">Restante</p>
-              <p style="font-size: 36px; font-weight: 900; margin: 0; color: rgba(255,255,255,0.6);">$${(invoice.total - (parseFloat(invoice.abono) || 0)).toLocaleString()}</p>
+              <p style="font-size: 12px; font-weight: 900; letter-spacing: 0.1em; color: ${textColor}33; text-transform: uppercase; margin-bottom: 10px;">Restante</p>
+              <p style="font-size: 36px; font-weight: 900; margin: 0; color: ${textColor}99;">$${(invoice.status === 'ABONO' ? invoice.total / 2 : 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -717,25 +736,29 @@ function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, o
       animate={{ opacity: 1, x: 0 }}
       className="space-y-6"
     >
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl tracking-tight">Facturación</h2>
-        <div className="flex gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+        <div>
+          <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-white">
+            {showOpExp ? 'Gastos Operativos' : 'Facturas'}
+          </h2>
+        </div>
+        <div className="flex w-full md:w-auto gap-2">
           <button 
             onClick={() => setIsStatsModalOpen(true)}
-            className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 hover:bg-apple-green/10 transition-colors group"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 hover:bg-apple-green/10 transition-colors group shrink-0"
             title="Ver Estadísticas"
           >
             <PieChartIcon className="w-5 h-5 text-white/20 group-hover:text-apple-green transition-colors" />
           </button>
           <button 
             onClick={() => setShowOpExp(!showOpExp)}
-            className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors ${showOpExp ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+            className={`flex-1 md:flex-none px-4 py-2 md:py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 border ${showOpExp ? 'bg-white/20 text-white border-white/20' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10'}`}
           >
             {showOpExp ? 'Ver Facturas' : 'Gastos/Inversión'}
           </button>
           <button 
             onClick={showOpExp ? onNewOpExp : onNew}
-            className="px-4 py-2 bg-apple-green text-premium-black rounded-xl text-[10px] font-bold uppercase tracking-widest"
+            className="flex-1 md:flex-none px-4 py-2 md:py-3 bg-apple-green text-premium-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-apple-green/20"
           >
             {showOpExp ? 'Nuevo Gasto' : 'Nueva'}
           </button>
@@ -745,6 +768,17 @@ function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, o
       <AnimatePresence>
         {isStatsModalOpen && (
           <BillingStatsModal stats={stats} onClose={() => setIsStatsModalOpen(false)} />
+        )}
+        {previewInvoice && (
+          <InvoicePreviewModal 
+            invoice={previewInvoice} 
+            onClose={() => setPreviewInvoice(null)} 
+            onDownload={() => downloadInvoice(previewInvoice)}
+            onUpdate={(updated: any) => {
+              onUpdateInvoice(updated);
+              setPreviewInvoice(updated);
+            }}
+          />
         )}
       </AnimatePresence>
 
@@ -867,20 +901,43 @@ function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, o
                                 </div>
                               </div>
 
-                              <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                              <div className="flex justify-end gap-2 pt-4 border-t border-white/5 overflow-x-auto pb-2">
+                                <button 
+                                  onClick={() => setPreviewInvoice(inv)}
+                                  className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white transition-colors shrink-0"
+                                  title="Vista Previa"
+                                >
+                                  <ImageIcon className="w-3 h-3 text-apple-green" />
+                                  <span className="hidden md:inline">Vista Previa</span>
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    const text = `Hola ${inv.clientName}, adjunto tu factura de ${inv.companyName}.`;
+                                    const phone = inv.clientPhone ? inv.clientPhone.replace(/\D/g, '') : '';
+                                    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+                                    window.open(url, '_blank');
+                                  }}
+                                  className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white transition-colors shrink-0"
+                                  title="Compartir"
+                                >
+                                  <Share2 className="w-3 h-3 text-apple-green" />
+                                  <span className="hidden md:inline">Compartir</span>
+                                </button>
                                 <button 
                                   onClick={() => onEdit(inv)}
-                                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white transition-colors"
+                                  className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white transition-colors shrink-0"
+                                  title="Editar"
                                 >
                                   <Edit2 className="w-3 h-3 text-apple-green" />
-                                  Editar
+                                  <span className="hidden md:inline">Editar</span>
                                 </button>
                                 <button 
                                   onClick={() => downloadInvoice(inv)}
-                                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white transition-colors"
+                                  className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white transition-colors shrink-0"
+                                  title="Descargar"
                                 >
                                   <Download className="w-3 h-3 text-apple-green" />
-                                  Descargar
+                                  <span className="hidden md:inline">Descargar</span>
                                 </button>
                                 <button 
                                   onClick={() => {
@@ -888,10 +945,11 @@ function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, o
                                       onDelete(inv.id);
                                     }
                                   }}
-                                  className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-500 transition-colors"
+                                  className="flex items-center gap-2 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-500 transition-colors shrink-0"
+                                  title="Borrar"
                                 >
                                   <Trash2 className="w-3 h-3" />
-                                  Borrar
+                                  <span className="hidden md:inline">Borrar</span>
                                 </button>
                               </div>
                             </div>
@@ -1119,12 +1177,14 @@ function InvoiceGeneratorModal({ onClose, onSave, initialData, companyProfile, o
     companyName: companyProfile.companyName || '',
     nit: companyProfile.nit || '',
     clientName: '',
+    clientPhone: '',
     type: 'invoice',
     items: [{ quantity: 1, description: '', unitPrice: '', costPrice: '' }],
     deliveryDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
     status: 'PENDIENTE',
     abono: '',
-    logoUrl: companyProfile.logoUrl || ''
+    logoUrl: companyProfile.logoUrl || '',
+    gradientColors: ['#080505', '#1a1a1a']
   });
 
   const addItem = () => {
@@ -1254,13 +1314,22 @@ function InvoiceGeneratorModal({ onClose, onSave, initialData, companyProfile, o
             />
           </div>
 
-          <input 
-            type="text" 
-            placeholder="Nombre del Cliente"
-            value={formData.clientName}
-            onChange={e => setFormData({...formData, clientName: e.target.value})}
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-xs focus:outline-none focus:border-apple-green/50"
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <input 
+              type="text" 
+              placeholder="Nombre del Cliente"
+              value={formData.clientName}
+              onChange={e => setFormData({...formData, clientName: e.target.value})}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-xs focus:outline-none focus:border-apple-green/50"
+            />
+            <input 
+              type="text" 
+              placeholder="Celular (WhatsApp)"
+              value={formData.clientPhone}
+              onChange={e => setFormData({...formData, clientPhone: e.target.value})}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-xs focus:outline-none focus:border-apple-green/50"
+            />
+          </div>
 
           <div className="space-y-4 pt-4 border-t border-white/5">
             <div className="flex justify-between items-center">
@@ -1350,88 +1419,244 @@ function InvoiceGeneratorModal({ onClose, onSave, initialData, companyProfile, o
   );
 }
 
-function InvoicePreviewModal({ invoice, onClose }: any) {
+function InvoicePreviewModal({ invoice, onClose, onDownload, onUpdate }: any) {
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
+  const handleWhatsAppShare = () => {
+    const text = `Hola ${invoice.clientName}, adjunto tu factura de ${invoice.companyName}.`;
+    const phone = invoice.clientPhone ? invoice.clientPhone.replace(/\D/g, '') : '';
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
+  const gradient = invoice.gradientColors ? 
+    `linear-gradient(135deg, ${invoice.gradientColors[0]} 0%, ${invoice.gradientColors[1]} 100%)` : 
+    '#080505';
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 p-4 overflow-y-auto"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 p-2 md:p-4 overflow-y-auto"
     >
-      <div className="w-full max-w-md md:max-w-2xl space-y-6 my-8">
+      <div className="w-full max-w-sm md:max-w-xs space-y-4 md:space-y-6 my-4">
         <div className="flex justify-between items-center px-2">
-          <button onClick={onClose} className="text-white/40 flex items-center gap-2 text-xs uppercase font-bold tracking-widest">
+          <button onClick={onClose} className="text-white/40 flex items-center gap-2 text-[10px] md:text-xs uppercase font-bold tracking-widest">
             <ChevronRight className="w-4 h-4 rotate-180" /> Volver
           </button>
-          <div className="flex gap-4">
-            <button className="text-apple-green"><Share2 className="w-5 h-5" /></button>
-            <button className="text-apple-green"><Download className="w-5 h-5" /></button>
+          <div className="flex gap-2 md:gap-4">
+            <button 
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="text-apple-green flex items-center gap-1 md:gap-2 text-[8px] md:text-[10px] font-bold uppercase tracking-widest"
+            >
+              <Palette className="w-4 h-4 md:w-5 md:h-5" /> <span className="hidden xs:inline">Color</span>
+            </button>
+            <button onClick={handleWhatsAppShare} className="text-apple-green"><Share2 className="w-4 h-4 md:w-5 md:h-5" /></button>
+            <button onClick={onDownload} className="text-apple-green"><Download className="w-4 h-4 md:w-5 md:h-5" /></button>
           </div>
         </div>
 
+        {showColorPicker && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="glass-card p-4 md:p-6 bg-white/[0.02] border border-white/10 rounded-2xl md:rounded-3xl space-y-3 md:space-y-4"
+          >
+            <p className="text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-white/40">Personalización</p>
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
+              <div className="space-y-1">
+                <label className="text-[7px] md:text-[8px] text-white/20 uppercase font-bold block">Fondo 1</label>
+                <input 
+                  type="color" 
+                  value={invoice.gradientColors?.[0] || '#080505'} 
+                  onChange={(e) => onUpdate({
+                    ...invoice,
+                    gradientColors: [e.target.value, invoice.gradientColors?.[1] || '#080505']
+                  })}
+                  className="w-full h-8 md:h-10 rounded-lg bg-transparent border border-white/10 cursor-pointer"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[7px] md:text-[8px] text-white/20 uppercase font-bold block">Fondo 2</label>
+                <input 
+                  type="color" 
+                  value={invoice.gradientColors?.[1] || '#080505'} 
+                  onChange={(e) => onUpdate({
+                    ...invoice,
+                    gradientColors: [invoice.gradientColors?.[0] || '#080505', e.target.value]
+                  })}
+                  className="w-full h-8 md:h-10 rounded-lg bg-transparent border border-white/10 cursor-pointer"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[7px] md:text-[8px] text-white/20 uppercase font-bold block">Texto</label>
+                <input 
+                  type="color" 
+                  value={invoice.textColor || '#FFFFFF'} 
+                  onChange={(e) => onUpdate({
+                    ...invoice,
+                    textColor: e.target.value
+                  })}
+                  className="w-full h-8 md:h-10 rounded-lg bg-transparent border border-white/10 cursor-pointer"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Invoice Card - Styled like the image */}
-        <div className="aspect-[4/5] w-full bg-[#080505] rounded-[40px] p-10 flex flex-col relative overflow-hidden border border-white/5 shadow-2xl">
+        <div 
+          style={{ 
+            background: gradient,
+            color: invoice.textColor || '#FFFFFF'
+          }}
+          className="aspect-[4/5] w-full rounded-[24px] md:rounded-[40px] p-6 md:p-10 flex flex-col relative overflow-hidden border border-white/5 shadow-2xl scale-[0.9] md:scale-100 origin-top"
+        >
           {/* Header Date */}
-          <div className="text-center mb-10">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-white/40">
-              {format(new Date(invoice.date), "d 'DE' MMMM 'DE' yyyy").toUpperCase()}
+          <div className="text-center mb-6 md:mb-10">
+            <p 
+              style={{ color: (invoice.textColor || '#FFFFFF') + '66' }}
+              className="text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-bold"
+            >
+              {format(new Date(invoice.date), "d 'DE' MMMM 'DE' yyyy", { locale: es }).toUpperCase()}
             </p>
           </div>
 
-          <div className="flex items-center gap-6 mb-12">
+          <div className="flex items-center gap-4 md:gap-6 mb-8 md:mb-12">
             {/* Logo Placeholder */}
-            <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-xl">
-              <div className="w-14 h-14 rounded-full border-4 border-black flex items-center justify-center">
-                <span className="text-black font-black text-3xl italic">U</span>
-              </div>
+            <div className="w-12 h-12 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center shadow-xl overflow-hidden">
+              {invoice.logoUrl ? (
+                <img src={invoice.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-8 h-8 md:w-14 md:h-14 rounded-full border-2 md:border-4 border-black flex items-center justify-center">
+                  <span className="text-black font-black text-xl md:text-3xl italic">U</span>
+                </div>
+              )}
             </div>
             <div>
-              <h3 className="text-white/60 font-black text-xl tracking-tight leading-none uppercase">{invoice.companyName}</h3>
-              <p className="text-white/20 text-[10px] font-bold tracking-widest mt-1">NIT: {invoice.nit}</p>
+              <h3 
+                style={{ color: (invoice.textColor || '#FFFFFF') + '99' }}
+                className="font-black text-sm md:text-xl tracking-tight leading-none uppercase"
+              >
+                {invoice.companyName}
+              </h3>
+              <p 
+                style={{ color: (invoice.textColor || '#FFFFFF') + '33' }}
+                className="text-[8px] md:text-[10px] font-bold tracking-widest mt-1"
+              >
+                NIT: {invoice.nit}
+              </p>
             </div>
           </div>
 
-          <h2 className="text-white text-5xl font-black tracking-tighter mb-12 leading-tight">
-            {invoice.clientName}
-          </h2>
+          <div className="mb-8 md:mb-12">
+            <h2 
+              style={{ color: invoice.textColor || '#FFFFFF' }}
+              className="text-2xl md:text-5xl font-black tracking-tighter leading-tight"
+            >
+              {invoice.clientName}
+            </h2>
+            {invoice.clientPhone && (
+              <p 
+                style={{ color: (invoice.textColor || '#FFFFFF') + '66' }}
+                className="text-sm md:text-xl font-bold tracking-tight mt-1 md:mt-2"
+              >
+                {invoice.clientPhone}
+              </p>
+            )}
+          </div>
 
           {/* Items List */}
-          <div className="flex-1 space-y-6">
+          <div className="flex-1 space-y-4 md:space-y-6 overflow-y-auto pr-2">
             {invoice.items.map((item: any, idx: number) => (
-              <div key={idx} className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <span className="text-white/20 font-black text-xl mt-1">{item.quantity}</span>
-                  <p className="text-white text-2xl font-medium tracking-tight leading-snug">{item.description}</p>
+              <div key={idx} className="flex items-start justify-between gap-2 md:gap-4">
+                <div className="flex items-start gap-2 md:gap-4">
+                  <span 
+                    style={{ color: (invoice.textColor || '#FFFFFF') + '33' }}
+                    className="font-black text-sm md:text-xl mt-1"
+                  >
+                    {item.quantity}
+                  </span>
+                  <p 
+                    style={{ color: invoice.textColor || '#FFFFFF' }}
+                    className="text-sm md:text-2xl font-medium tracking-tight leading-snug"
+                  >
+                    {item.description}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white text-xl font-bold tracking-tighter">${(parseFloat(item.unitPrice) || 0).toLocaleString()}</p>
+                  <p 
+                    style={{ color: invoice.textColor || '#FFFFFF' }}
+                    className="text-sm md:text-xl font-bold tracking-tighter"
+                  >
+                    ${(parseFloat(item.unitPrice) || 0).toLocaleString()}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="pt-8 border-t border-white/10 flex justify-between items-end">
-            <div className="space-y-6">
+          <div className="pt-4 md:pt-8 border-t border-white/10 flex justify-between items-end">
+            <div className="space-y-4 md:space-y-6">
               <div>
-                <p className="text-[10px] uppercase font-black tracking-widest text-white/20 mb-2">Fecha Entrega</p>
-                <p className="text-white text-xl font-bold tracking-tight">
+                <p 
+                  style={{ color: (invoice.textColor || '#FFFFFF') + '33' }}
+                  className="text-[8px] md:text-[10px] uppercase font-black tracking-widest mb-1 md:mb-2"
+                >
+                  Fecha Entrega
+                </p>
+                <p 
+                  style={{ color: invoice.textColor || '#FFFFFF' }}
+                  className="text-sm md:text-xl font-bold tracking-tight"
+                >
                   {format(new Date(invoice.deliveryDate), "dd/MM/yyyy h:mma")}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] uppercase font-black tracking-widest text-white/20 mb-2">Estado</p>
-                <p className="text-white text-2xl font-black tracking-widest">{invoice.status}</p>
+                <p 
+                  style={{ color: (invoice.textColor || '#FFFFFF') + '33' }}
+                  className="text-[8px] md:text-[10px] uppercase font-black tracking-widest mb-1 md:mb-2"
+                >
+                  Estado
+                </p>
+                <p 
+                  style={{ color: invoice.textColor || '#FFFFFF' }}
+                  className="text-sm md:text-2xl font-black tracking-widest uppercase"
+                >
+                  {invoice.status}
+                </p>
               </div>
             </div>
 
-            <div className="bg-white/[0.03] p-8 rounded-[32px] border border-white/5 min-w-[160px]">
-              <div className="text-right mb-6">
-                <p className="text-[10px] uppercase font-black tracking-widest text-white/20 mb-2">Total</p>
-                <p className="text-white text-4xl font-black tracking-tighter">${invoice.total.toLocaleString()}</p>
+            <div className="bg-white/[0.03] p-4 md:p-8 rounded-[20px] md:rounded-[32px] border border-white/5 min-w-[120px] md:min-w-[160px]">
+              <div className="text-right mb-3 md:mb-6">
+                <p 
+                  style={{ color: (invoice.textColor || '#FFFFFF') + '33' }}
+                  className="text-[8px] md:text-[10px] uppercase font-black tracking-widest mb-1 md:mb-2"
+                >
+                  Total
+                </p>
+                <p 
+                  style={{ color: invoice.textColor || '#FFFFFF' }}
+                  className="text-xl md:text-4xl font-black tracking-tighter"
+                >
+                  ${invoice.total.toLocaleString()}
+                </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase font-black tracking-widest text-white/20 mb-2">Restante</p>
-                <p className="text-white/60 text-2xl font-black tracking-tighter">${(invoice.status === 'ABONO' ? invoice.total / 2 : 0).toLocaleString()}</p>
+                <p 
+                  style={{ color: (invoice.textColor || '#FFFFFF') + '33' }}
+                  className="text-[8px] md:text-[10px] uppercase font-black tracking-widest mb-1 md:mb-2"
+                >
+                  Restante
+                </p>
+                <p 
+                  style={{ color: (invoice.textColor || '#FFFFFF') + '99' }}
+                  className="text-sm md:text-2xl font-black tracking-tighter"
+                >
+                  ${(invoice.status === 'ABONO' ? invoice.total / 2 : 0).toLocaleString()}
+                </p>
               </div>
             </div>
           </div>
