@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { 
   AreaChart, 
   Area, 
@@ -27,7 +28,9 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  BarChart,
+  Bar
 } from 'recharts';
 import { Transaction } from './lib/gemini';
 
@@ -57,10 +60,19 @@ export default function App() {
     const saved = localStorage.getItem('impulse_company_profile');
     return saved ? JSON.parse(saved) : { companyName: '', nit: '', logoUrl: '' };
   });
+  const [operatingExpenses, setOperatingExpenses] = useState<any[]>(() => {
+    const saved = localStorage.getItem('impulse_operating_expenses');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isOpExpModalOpen, setIsOpExpModalOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('impulse_transactions', JSON.stringify(transactions));
   }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem('impulse_operating_expenses', JSON.stringify(operatingExpenses));
+  }, [operatingExpenses]);
 
   useEffect(() => {
     localStorage.setItem('impulse_invoices', JSON.stringify(invoices));
@@ -110,11 +122,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full max-w-7xl mx-auto bg-premium-black relative overflow-hidden flex flex-col shadow-2xl">
+    <div className="min-h-screen w-full bg-premium-black relative overflow-hidden flex flex-col shadow-2xl">
       {/* Header */}
-      <header className="px-6 pt-12 pb-6 flex justify-between items-center max-w-4xl mx-auto w-full">
+      <header className="px-6 md:px-12 pt-12 pb-6 flex justify-between items-center w-full">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-apple-green/10 border border-white/5">
+          <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-white/20 border border-white/5">
             <img 
               src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgn2on7GUzVrK26XTBTK9SMAElmdSsJ_jHIXHAZn7rIGtbDhYqfr4Q-5oTVo7zlfCLSSu37wZ7Fu7Dj7bOP35NthPBZH1gWtlPGRpddxNBj8Vbb9htG3tPn1uEXtMfkrrKVd5CngTzk7YfWfqoZ23d3NZRoexwit1RxhyhqfBorCR6FtGO_9mIpzHoSYKsu/s1758/SDFAFD12E21223R23223.png" 
               alt="Logo" 
@@ -137,7 +149,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 px-6 pb-32 overflow-y-auto max-w-4xl mx-auto w-full">
+      <main className="flex-1 px-6 md:px-12 pb-32 overflow-y-auto w-full">
         {activeTab === 'dashboard' ? (
           <Dashboard 
             balance={totalBalance} 
@@ -153,7 +165,9 @@ export default function App() {
         ) : (
           <InvoiceList 
             invoices={invoices} 
+            operatingExpenses={operatingExpenses}
             onNew={() => setIsInvoiceModalOpen(true)} 
+            onNewOpExp={() => setIsOpExpModalOpen(true)}
             onEdit={(inv: any) => {
               setEditingInvoice(inv);
               setIsInvoiceModalOpen(true);
@@ -161,51 +175,65 @@ export default function App() {
             onDelete={(id: string) => {
               setInvoices(invoices.filter(inv => inv.id !== id));
             }}
+            onDeleteOpExp={(id: string) => {
+              setOperatingExpenses(operatingExpenses.filter(e => e.id !== id));
+            }}
           />
         )}
       </main>
 
       {/* Navigation */}
-      <div className="fixed bottom-6 left-0 right-0 px-4 z-40">
-        <nav className="max-w-[360px] md:max-w-md mx-auto h-16 glass-card bg-white/[0.05] border border-white/10 rounded-[24px] flex justify-around items-center px-1 shadow-2xl shadow-black/50">
+      <div className="fixed bottom-8 left-0 right-0 px-6 z-40 w-full pointer-events-none">
+        <nav className="max-w-[380px] mx-auto h-16 glass-card bg-black/60 backdrop-blur-2xl border border-white/10 rounded-[28px] flex justify-around items-center px-2 gap-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto relative overflow-hidden">
+          {/* Subtle inner glow */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+          
           <button 
             onClick={() => setActiveTab('dashboard')}
-            className={`relative flex flex-col items-center gap-0.5 transition-all duration-300 ${activeTab === 'dashboard' ? 'text-apple-green scale-105' : 'text-white/30 hover:text-white/50'}`}
+            className={`relative flex-1 h-full flex flex-col items-center justify-center gap-1 transition-all duration-500 group ${activeTab === 'dashboard' ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}
           >
-            <TrendingUp className="w-5 h-5" />
-            <span className="text-[8px] uppercase font-bold tracking-tighter">Resumen</span>
+            <div className={`p-2 rounded-xl transition-colors duration-300 ${activeTab === 'dashboard' ? 'bg-white/10' : 'group-hover:bg-white/5'}`}>
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <span className="text-[7px] uppercase font-black tracking-[0.1em]">Resumen</span>
             {activeTab === 'dashboard' && (
-              <motion.div layoutId="nav-glow" className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-apple-green shadow-[0_0_8px_#88d629]" />
+              <motion.div layoutId="nav-indicator" className="absolute bottom-1 w-1 h-1 rounded-full bg-white shadow-[0_0_10px_#fff]" />
             )}
           </button>
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex flex-col items-center gap-0.5 text-white/30 hover:text-white/50 transition-all duration-300 active:scale-90"
+            className="flex-1 h-full flex flex-col items-center justify-center gap-1 text-white/30 hover:text-white/60 transition-all duration-500 group active:scale-90"
           >
-            <Plus className="w-5 h-5" />
-            <span className="text-[8px] uppercase font-bold tracking-tighter">Nuevo</span>
+            <div className="p-2 rounded-xl bg-white/5 group-hover:bg-white/10 transition-colors">
+              <Plus className="w-5 h-5" />
+            </div>
+            <span className="text-[7px] uppercase font-black tracking-[0.1em]">Nuevo</span>
           </button>
 
           <button 
             onClick={() => setActiveTab('history')}
-            className={`relative flex flex-col items-center gap-0.5 transition-all duration-300 ${activeTab === 'history' ? 'text-apple-green scale-105' : 'text-white/30 hover:text-white/50'}`}
+            className={`relative flex-1 h-full flex flex-col items-center justify-center gap-1 transition-all duration-500 group ${activeTab === 'history' ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}
           >
-            <History className="w-5 h-5" />
-            <span className="text-[8px] uppercase font-bold tracking-tighter">Historial</span>
+            <div className={`p-2 rounded-xl transition-colors duration-300 ${activeTab === 'history' ? 'bg-white/10' : 'group-hover:bg-white/5'}`}>
+              <History className="w-5 h-5" />
+            </div>
+            <span className="text-[7px] uppercase font-black tracking-[0.1em]">Historial</span>
             {activeTab === 'history' && (
-              <motion.div layoutId="nav-glow" className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-apple-green shadow-[0_0_8px_#88d629]" />
+              <motion.div layoutId="nav-indicator" className="absolute bottom-1 w-1 h-1 rounded-full bg-white shadow-[0_0_10px_#fff]" />
             )}
           </button>
 
           <button 
             onClick={() => setActiveTab('invoices')}
-            className={`relative flex flex-col items-center gap-0.5 transition-all duration-300 ${activeTab === 'invoices' ? 'text-apple-green scale-105' : 'text-white/30 hover:text-white/50'}`}
+            className={`relative flex-1 h-full flex flex-col items-center justify-center gap-1 transition-all duration-500 group ${activeTab === 'invoices' ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}
           >
-            <FileText className="w-5 h-5" />
-            <span className="text-[8px] uppercase font-bold tracking-tighter">Facturas</span>
+            <div className={`p-2 rounded-xl transition-colors duration-300 ${activeTab === 'invoices' ? 'bg-white/10' : 'group-hover:bg-white/5'}`}>
+              <FileText className="w-5 h-5" />
+            </div>
+            <span className="text-[7px] uppercase font-black tracking-[0.1em]">Facturas</span>
             {activeTab === 'invoices' && (
-              <motion.div layoutId="nav-glow" className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-apple-green shadow-[0_0_8px_#88d629]" />
+              <motion.div layoutId="nav-indicator" className="absolute bottom-1 w-1 h-1 rounded-full bg-white shadow-[0_0_10px_#fff]" />
             )}
           </button>
         </nav>
@@ -244,6 +272,17 @@ export default function App() {
               }
               setIsInvoiceModalOpen(false);
               setEditingInvoice(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isOpExpModalOpen && (
+          <OperatingExpensesModal 
+            onClose={() => setIsOpExpModalOpen(false)}
+            onSave={(expense: any) => {
+              setOperatingExpenses([{ ...expense, id: Math.random().toString(36).substr(2, 9) }, ...operatingExpenses]);
+              setIsOpExpModalOpen(false);
             }}
           />
         )}
@@ -321,7 +360,7 @@ function Dashboard({ balance, income, expenses, transactions, onEditTransaction,
       {/* Balance Card & Chart Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="glass-card p-6 premium-gradient relative overflow-hidden">
-          <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl rounded-full -mr-16 -mt-16 transition-colors duration-500 ${isUp ? 'bg-apple-green/10' : 'bg-red-500/10'}`} />
+          <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl rounded-full -mr-16 -mt-16 transition-colors duration-500 ${isUp ? 'bg-white/10' : 'bg-red-500/10'}`} />
           
           <div className="flex items-center gap-6 relative z-10">
             {/* Savings Goal Progress - Smaller and on the left */}
@@ -354,7 +393,7 @@ function Dashboard({ balance, income, expenses, transactions, onEditTransaction,
                     initial={{ strokeDashoffset: circumference }}
                     animate={{ strokeDashoffset: offset }}
                     transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="text-apple-green"
+                    className="text-white"
                     strokeLinecap="round"
                   />
                 </svg>
@@ -365,8 +404,8 @@ function Dashboard({ balance, income, expenses, transactions, onEditTransaction,
             </button>
 
             <div className="space-y-0.5">
-              <p className="text-white/40 text-[10px] uppercase tracking-widest">Balance Total</p>
-              <h2 className="text-4xl font-bold tracking-tighter">
+              <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Balance Total</p>
+              <h2 className="text-4xl font-bold tracking-tighter text-white">
                 ${Math.round(balance).toLocaleString()}
               </h2>
             </div>
@@ -375,20 +414,20 @@ function Dashboard({ balance, income, expenses, transactions, onEditTransaction,
           <div className="grid grid-cols-2 gap-4 mt-6 relative z-10">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center">
-                <ArrowUpRight className="w-5 h-5 text-green-500" />
+                <ArrowUpRight className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider">Ingresos</p>
-                <p className="font-bold text-sm text-green-500">+${Math.round(income).toLocaleString()}</p>
+                <p className="text-[10px] text-white/60 font-bold uppercase tracking-wider">Ingresos</p>
+                <p className="font-bold text-sm text-white">+${Math.round(income).toLocaleString()}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center">
-                <ArrowDownLeft className="w-5 h-5 text-red-500" />
+                <ArrowDownLeft className="w-5 h-5 text-white/60" />
               </div>
               <div>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider">Gastos</p>
-                <p className="font-bold text-sm text-red-500">-${Math.round(expenses).toLocaleString()}</p>
+                <p className="text-[10px] text-white/60 font-bold uppercase tracking-wider">Gastos</p>
+                <p className="font-bold text-sm text-white/60">-${Math.round(expenses).toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -412,7 +451,13 @@ function Dashboard({ balance, income, expenses, transactions, onEditTransaction,
                     <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="date" hide />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 8 }} 
+                  axisLine={false} 
+                  tickLine={false}
+                  dy={10}
+                />
                 <YAxis hide domain={['auto', 'auto']} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
@@ -422,6 +467,17 @@ function Dashboard({ balance, income, expenses, transactions, onEditTransaction,
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          {transactions.length > 0 && (
+            <div className="pt-2 flex gap-2 overflow-x-auto no-scrollbar">
+              {transactions.slice(0, 5).map((t: any) => (
+                <div key={t.id} className="flex-shrink-0 px-2 py-1 rounded-lg bg-white/5 border border-white/5">
+                  <p className="text-[8px] text-white/40 font-bold uppercase tracking-tighter">
+                    {format(new Date(t.date), 'HH:mm')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -501,9 +557,52 @@ function Dashboard({ balance, income, expenses, transactions, onEditTransaction,
   );
 }
 
-function InvoiceList({ invoices, onNew, onEdit, onDelete }: any) {
+function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, onDelete, onDeleteOpExp }: any) {
   const [activeOptionsId, setActiveOptionsId] = useState<string | null>(null);
-  const invoiceRef = useRef<HTMLDivElement>(null);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+  const [showOpExp, setShowOpExp] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
+  const stats = invoices.reduce((acc: any, inv: any) => {
+    if (inv.type === 'invoice') {
+      acc.invoices++;
+      const profit = inv.items.reduce((pAcc: number, item: any) => {
+        const unit = parseFloat(item.unitPrice) || 0;
+        const cost = parseFloat(item.costPrice) || 0;
+        return pAcc + (item.quantity * (unit - cost));
+      }, 0);
+      acc.earnings += profit;
+      acc.abonos += (parseFloat(inv.abono) || 0);
+      acc.remaining += (inv.total - (parseFloat(inv.abono) || 0));
+    } else {
+      acc.quotes++;
+    }
+    return acc;
+  }, { invoices: 0, quotes: 0, earnings: 0, abonos: 0, remaining: 0 });
+
+  const totalOpExp = operatingExpenses.reduce((acc: number, curr: any) => acc + (parseFloat(curr.amount) || 0), 0);
+
+  const getProfitChartData = () => {
+    const sorted = [...invoices]
+      .filter(inv => inv.type === 'invoice')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    let cumulativeProfit = 0;
+    return sorted.map(inv => {
+      const profit = inv.items.reduce((acc: number, item: any) => {
+        const unit = parseFloat(item.unitPrice) || 0;
+        const cost = parseFloat(item.costPrice) || 0;
+        return acc + (item.quantity * (unit - cost));
+      }, 0);
+      cumulativeProfit += profit;
+      return {
+        date: format(new Date(inv.date), 'dd/MM'),
+        profit: cumulativeProfit
+      };
+    });
+  };
+
+  const profitData = getProfitChartData();
 
   const downloadInvoice = async (invoice: any) => {
     // Create a temporary container for the high-quality render
@@ -533,7 +632,7 @@ function InvoiceList({ invoices, onNew, onEdit, onDelete }: any) {
       ">
         <div style="text-align: center; margin-bottom: 40px;">
           <p style="font-size: 14px; font-weight: 900; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); text-transform: uppercase;">
-            ${format(new Date(invoice.date), "d 'DE' MMMM 'DE' yyyy").toUpperCase()}
+            ${format(new Date(invoice.date), "d 'DE' MMMM 'DE' yyyy", { locale: es }).toUpperCase()}
           </p>
         </div>
 
@@ -547,12 +646,12 @@ function InvoiceList({ invoices, onNew, onEdit, onDelete }: any) {
             }
           </div>
           <div>
-            <h3 style="font-weight: 900; font-size: 28px; margin: 0; text-transform: uppercase; color: rgba(255,255,255,0.7);">${invoice.companyName}</h3>
+            <h3 style="font-weight: 900; font-size: 36px; margin: 0; text-transform: uppercase; color: rgba(255,255,255,0.7);">${invoice.companyName}</h3>
             <p style="font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.3); margin-top: 5px;">NIT: ${invoice.nit}</p>
           </div>
         </div>
 
-        <h2 style="font-size: 72px; font-weight: 900; letter-spacing: -0.04em; margin: 0 0 50px 0; line-height: 1;">${invoice.clientName}</h2>
+        <h2 style="font-size: 56px; font-weight: 900; letter-spacing: -0.04em; margin: 0 0 50px 0; line-height: 1;">${invoice.clientName}</h2>
 
         <div style="flex: 1; margin-bottom: 40px;">
           ${invoice.items.map((item: any) => `
@@ -619,105 +718,398 @@ function InvoiceList({ invoices, onNew, onEdit, onDelete }: any) {
       className="space-y-6"
     >
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl tracking-tight">Facturas</h2>
-        <button 
-          onClick={onNew}
-          className="px-4 py-2 bg-apple-green text-premium-black rounded-xl text-[10px] font-bold uppercase tracking-widest"
-        >
-          Nueva
-        </button>
+        <h2 className="text-2xl tracking-tight">Facturación</h2>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsStatsModalOpen(true)}
+            className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 hover:bg-apple-green/10 transition-colors group"
+            title="Ver Estadísticas"
+          >
+            <PieChartIcon className="w-5 h-5 text-white/20 group-hover:text-apple-green transition-colors" />
+          </button>
+          <button 
+            onClick={() => setShowOpExp(!showOpExp)}
+            className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors ${showOpExp ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+          >
+            {showOpExp ? 'Ver Facturas' : 'Gastos/Inversión'}
+          </button>
+          <button 
+            onClick={showOpExp ? onNewOpExp : onNew}
+            className="px-4 py-2 bg-apple-green text-premium-black rounded-xl text-[10px] font-bold uppercase tracking-widest"
+          >
+            {showOpExp ? 'Nuevo Gasto' : 'Nueva'}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {invoices.length > 0 ? (
-          invoices.map((inv: any) => {
-            const totalProfit = inv.items.reduce((acc: number, item: any) => {
-              const unit = parseFloat(item.unitPrice) || 0;
-              const cost = parseFloat(item.costPrice) || 0;
-              return acc + (item.quantity * (unit - cost));
-            }, 0);
-
-            return (
-              <div key={inv.id} className="relative">
-                <button 
-                  onClick={() => setActiveOptionsId(activeOptionsId === inv.id ? null : inv.id)}
-                  className={`w-full flex items-center justify-between p-4 glass-card transition-all text-left ${activeOptionsId === inv.id ? 'bg-white/10 ring-1 ring-apple-green/30' : 'bg-white/[0.02] hover:bg-white/[0.05]'}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                      {inv.logoUrl ? (
-                        <img src={inv.logoUrl} className="w-full h-full rounded-full object-cover" />
-                      ) : (
-                        <FileText className="w-5 h-5 text-apple-green" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-bold tracking-tight text-sm">{inv.clientName}</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[10px] text-white/40 uppercase tracking-wider">{inv.type === 'invoice' ? 'Factura' : 'Cotización'}</p>
-                        <span className="text-[10px] text-apple-green/60 font-bold">• Ganancia: ${totalProfit.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold tracking-tighter text-white">${inv.total.toLocaleString()}</p>
-                    <p className="text-[8px] text-white/20">{format(new Date(inv.date), 'dd/MM/yyyy')}</p>
-                  </div>
-                </button>
-
-                <AnimatePresence>
-                  {activeOptionsId === inv.id && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-4 top-[100%] mt-2 z-20 flex gap-2 p-2 glass-card bg-premium-gray border border-white/10 shadow-2xl"
-                    >
-                      <button 
-                        onClick={() => {
-                          onEdit(inv);
-                          setActiveOptionsId(null);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-white/5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-white transition-colors"
-                      >
-                        <Edit2 className="w-3 h-3 text-apple-green" />
-                        Editar
-                      </button>
-                      <button 
-                        onClick={() => {
-                          downloadInvoice(inv);
-                          setActiveOptionsId(null);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-white/5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-white transition-colors"
-                      >
-                        <Download className="w-3 h-3 text-apple-green" />
-                        Imagen
-                      </button>
-                      <button 
-                        onClick={() => {
-                          if (confirm('¿Eliminar esta factura?')) {
-                            onDelete(inv.id);
-                          }
-                          setActiveOptionsId(null);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-red-500/10 rounded-lg text-[10px] font-bold uppercase tracking-widest text-red-500 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        Borrar
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })
-        ) : (
-          <div className="p-12 glass-card border-dashed border-white/10 flex flex-col items-center justify-center text-center">
-            <FileText className="w-12 h-12 text-white/5 mb-4" />
-            <p className="text-white/20 text-sm">No has generado facturas</p>
-          </div>
+      <AnimatePresence>
+        {isStatsModalOpen && (
+          <BillingStatsModal stats={stats} onClose={() => setIsStatsModalOpen(false)} />
         )}
-      </div>
+      </AnimatePresence>
+
+      {!showOpExp ? (
+        <>
+          {/* Profit Chart */}
+          {profitData.length > 1 && (
+            <div className="glass-card p-6 bg-white/[0.02]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-white/40">Crecimiento de Ganancias</h3>
+                <TrendingUp className="w-4 h-4 text-apple-green" />
+              </div>
+              <div className="h-32 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={profitData}>
+                    <defs>
+                      <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#88d629" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#88d629" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" hide />
+                    <YAxis hide domain={['auto', 'auto']} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                      itemStyle={{ color: '#fff', fontSize: '12px' }}
+                    />
+                    <Area type="monotone" dataKey="profit" stroke="#88d629" fillOpacity={1} fill="url(#colorProfit)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4">
+            {invoices.length > 0 ? (
+              invoices.map((inv: any) => {
+                const totalProfit = inv.items.reduce((acc: number, item: any) => {
+                  const unit = parseFloat(item.unitPrice) || 0;
+                  const cost = parseFloat(item.costPrice) || 0;
+                  return acc + (item.quantity * (unit - cost));
+                }, 0);
+
+                const isExpanded = expandedInvoiceId === inv.id;
+
+                return (
+                  <div key={inv.id} className="relative">
+                    <div className={`glass-card overflow-hidden transition-all duration-500 ${isExpanded ? 'ring-1 ring-apple-green/30 bg-white/[0.05]' : 'bg-white/[0.02] hover:bg-white/[0.05]'}`}>
+                      <button 
+                        onClick={() => setExpandedInvoiceId(isExpanded ? null : inv.id)}
+                        className="w-full flex items-center justify-between p-4 text-left"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                            {inv.logoUrl ? (
+                              <img src={inv.logoUrl} className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              <FileText className="w-5 h-5 text-apple-green" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold tracking-tight text-sm">{inv.clientName}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[10px] text-white/40 uppercase tracking-wider">{inv.type === 'invoice' ? 'Factura' : 'Cotización'}</p>
+                              <span className="text-[10px] text-apple-green/60 font-bold">• Ganancia: ${totalProfit.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="font-bold tracking-tighter text-white">${inv.total.toLocaleString()}</p>
+                            <p className="text-[8px] text-white/20">{format(new Date(inv.date), 'dd/MM/yyyy')}</p>
+                          </div>
+                          <ChevronRight className={`w-4 h-4 text-white/20 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
+                        </div>
+                      </button>
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.4, ease: "circOut" }}
+                            className="border-t border-white/5 bg-black/20"
+                          >
+                            <div className="p-6 space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-white/20">Detalles de Items</h4>
+                                  <div className="space-y-2">
+                                    {inv.items.map((item: any, idx: number) => (
+                                      <div key={idx} className="flex justify-between items-center text-xs">
+                                        <span className="text-white/60">{item.quantity}x {item.description}</span>
+                                        <span className="font-mono text-white/40">${(item.quantity * item.unitPrice).toLocaleString()}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="space-y-4">
+                                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-white/20">Resumen Financiero</h4>
+                                  <div className="space-y-2 text-xs">
+                                    <div className="flex justify-between">
+                                      <span className="text-white/40">Total Bruto:</span>
+                                      <span className="text-white font-bold">${inv.total.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-white/40">Abonado:</span>
+                                      <span className="text-green-500 font-bold">${(parseFloat(inv.abono) || 0).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-white/40">Pendiente:</span>
+                                      <span className="text-red-500 font-bold">${(inv.total - (parseFloat(inv.abono) || 0)).toLocaleString()}</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-white/5 flex justify-between">
+                                      <span className="text-apple-green font-bold">Ganancia Neta:</span>
+                                      <span className="text-apple-green font-bold">${totalProfit.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                                <button 
+                                  onClick={() => onEdit(inv)}
+                                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white transition-colors"
+                                >
+                                  <Edit2 className="w-3 h-3 text-apple-green" />
+                                  Editar
+                                </button>
+                                <button 
+                                  onClick={() => downloadInvoice(inv)}
+                                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white transition-colors"
+                                >
+                                  <Download className="w-3 h-3 text-apple-green" />
+                                  Descargar
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    if (confirm('¿Eliminar esta factura?')) {
+                                      onDelete(inv.id);
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Borrar
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-12 glass-card border-dashed border-white/10 flex flex-col items-center justify-center text-center">
+                <FileText className="w-12 h-12 text-white/5 mb-4" />
+                <p className="text-white/20 text-sm">No has generado facturas</p>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="space-y-6">
+          <div className="glass-card p-6 bg-apple-green/5 border border-apple-green/10">
+            <p className="text-[10px] text-apple-green uppercase tracking-widest mb-1">Inversión Total en Materiales</p>
+            <p className="text-4xl font-bold tracking-tighter text-white">${totalOpExp.toLocaleString()}</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            {operatingExpenses.length > 0 ? (
+              operatingExpenses.map((exp: any) => (
+                <div key={exp.id} className="glass-card p-4 flex justify-between items-center bg-white/[0.02]">
+                  <div>
+                    <p className="font-bold text-sm">{exp.description}</p>
+                    <p className="text-[10px] text-white/20 uppercase tracking-widest">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className="font-bold text-white">${parseFloat(exp.amount).toLocaleString()}</p>
+                    <button 
+                      onClick={() => onDeleteOpExp(exp.id)}
+                      className="p-2 hover:bg-red-500/10 rounded-full text-red-500/40 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-12 glass-card border-dashed border-white/10 flex flex-col items-center justify-center text-center">
+                <p className="text-white/20 text-sm">No hay gastos operativos registrados</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function BillingStatsModal({ stats, onClose }: any) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-premium-black/90 backdrop-blur-md p-6"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="w-full max-w-lg glass-card p-8 space-y-8"
+      >
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-2xl font-bold tracking-tight text-white">Estadísticas</h3>
+            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1">Resumen de Facturación</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="glass-card p-6 bg-white/[0.02] space-y-1">
+            <p className="text-[10px] text-white/40 uppercase tracking-widest">Facturas</p>
+            <p className="text-3xl font-bold tracking-tighter text-white">{stats.invoices}</p>
+          </div>
+          <div className="glass-card p-6 bg-white/[0.02] space-y-1">
+            <p className="text-[10px] text-white/40 uppercase tracking-widest">Cotizaciones</p>
+            <p className="text-3xl font-bold tracking-tighter text-white">{stats.quotes}</p>
+          </div>
+          <div className="glass-card p-6 bg-apple-green/10 border border-apple-green/20 col-span-2 space-y-1">
+            <p className="text-[10px] text-apple-green uppercase tracking-widest font-bold">Ganancias Netas</p>
+            <p className="text-4xl font-bold tracking-tighter text-apple-green">${Math.round(stats.earnings).toLocaleString()}</p>
+          </div>
+          <div className="glass-card p-6 bg-white/[0.02] space-y-1">
+            <p className="text-[10px] text-white/40 uppercase tracking-widest">Abonos</p>
+            <p className="text-3xl font-bold tracking-tighter text-green-500">${Math.round(stats.abonos).toLocaleString()}</p>
+          </div>
+          <div className="glass-card p-6 bg-white/[0.02] space-y-1">
+            <p className="text-[10px] text-white/40 uppercase tracking-widest">Por Cobrar</p>
+            <p className="text-3xl font-bold tracking-tighter text-red-500">${Math.round(stats.remaining).toLocaleString()}</p>
+          </div>
+        </div>
+
+        <button 
+          onClick={onClose}
+          className="w-full py-4 bg-white/5 rounded-2xl text-white font-bold uppercase tracking-widest text-xs"
+        >
+          Cerrar
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function OperatingExpensesModal({ onClose, onSave }: any) {
+  const [formData, setFormData] = useState({
+    description: '',
+    amount: '',
+    type: 'Gasto Operativo', // Default type
+    date: format(new Date(), 'yyyy-MM-dd')
+  });
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-premium-black/90 backdrop-blur-md p-6"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="w-full max-w-md glass-card p-8 space-y-6"
+      >
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-xl font-bold tracking-tight text-white">Gasto / Inversión</h3>
+            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1">Materiales e Inversión</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onSave(formData);
+        }} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Tipo</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button 
+                type="button"
+                onClick={() => setFormData({ ...formData, type: 'Gasto Operativo' })}
+                className={`py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${formData.type === 'Gasto Operativo' ? 'bg-apple-green text-premium-black' : 'bg-white/5 text-white/40 border border-white/10'}`}
+              >
+                Gasto Operativo
+              </button>
+              <button 
+                type="button"
+                onClick={() => setFormData({ ...formData, type: 'Inversión' })}
+                className={`py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${formData.type === 'Inversión' ? 'bg-apple-green text-premium-black' : 'bg-white/5 text-white/40 border border-white/10'}`}
+              >
+                Inversión
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Descripción</label>
+            <input 
+              type="text"
+              required
+              value={formData.description}
+              onChange={e => setFormData({ ...formData, description: e.target.value })}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-apple-green/50 transition-colors"
+              placeholder="Ej: Compra de materia prima"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Monto</label>
+            <input 
+              type="number"
+              required
+              value={formData.amount}
+              onChange={e => setFormData({ ...formData, amount: e.target.value })}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-apple-green/50 transition-colors"
+              placeholder="0.00"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Fecha</label>
+            <input 
+              type="date"
+              required
+              value={formData.date}
+              onChange={e => setFormData({ ...formData, date: e.target.value })}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-apple-green/50 transition-colors"
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 pt-4">
+            <button 
+              type="submit"
+              className="w-full py-4 apple-gradient rounded-2xl text-premium-black font-bold uppercase tracking-widest text-xs shadow-lg shadow-apple-green/20"
+            >
+              Registrar {formData.type}
+            </button>
+            <button 
+              type="button"
+              onClick={onClose}
+              className="w-full py-4 bg-white/5 rounded-2xl text-white/60 font-bold uppercase tracking-widest text-xs"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </motion.div>
     </motion.div>
   );
 }
@@ -1066,7 +1458,7 @@ function TransactionItem({ transaction, showDate, onClick }: any) {
         <div>
           <p className="font-bold tracking-tight text-sm">{transaction.description}</p>
           <p className="text-[10px] text-white/40 uppercase tracking-wider">{transaction.category}</p>
-          <p className="text-[10px] text-white/20 mt-0.5">{format(new Date(transaction.date), 'dd MMM, HH:mm')}</p>
+          <p className="text-[10px] text-white/20 mt-0.5">{format(new Date(transaction.date), "dd MMM, HH:mm", { locale: es })}</p>
         </div>
       </div>
       <p className={`font-bold tracking-tighter ${
