@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and subscription data",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string", "description": "User's first name" },
+        "lastName": { "type": "string", "description": "User's last name" },
+        "phone": { "type": "string", "description": "User's cell phone number" },
+        "isSubscribed": { "type": "boolean", "description": "Whether the user has an active premium subscription" }
+      },
+      "required": ["firstName", "lastName", "phone"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Personal finance transaction",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "type", "category", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "User transaction documents"
+    }
+  }
+}

@@ -1,8 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Cerebri Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Cerebri Sans", "Inter", sans-serif;
+  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Inter", sans-serif;
   
   --color-apple-green: #88d629;
   --color-premium-black: #0A0A0A;

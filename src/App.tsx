@@ -17,7 +17,21 @@ import {
   Share2,
   Edit2,
   Trash2,
-  Palette
+  Palette,
+  Utensils,
+  Car,
+  HeartPulse,
+  Home,
+  Gamepad2,
+  DollarSign,
+  MoreHorizontal,
+  LogOut,
+  User as UserIcon,
+  UserPlus,
+  Crown,
+  CreditCard,
+  Phone,
+  CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -34,11 +48,15 @@ import {
   Bar
 } from 'recharts';
 import { Transaction } from './lib/gemini';
+import { auth, signInWithGoogle, logout, db } from './lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Mock initial data - Empty for clean start
 const INITIAL_TRANSACTIONS: Transaction[] = [];
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const saved = localStorage.getItem('impulse_transactions');
     return saved ? JSON.parse(saved) : [];
@@ -49,7 +67,8 @@ export default function App() {
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'invoices'>('dashboard');
@@ -66,6 +85,26 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
   const [isOpExpModalOpen, setIsOpExpModalOpen] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (u) {
+        const fetchProfile = async () => {
+          const docRef = doc(db, 'users', u.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setProfile(docSnap.data());
+          }
+        };
+        fetchProfile();
+      } else {
+        setProfile(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('impulse_transactions', JSON.stringify(transactions));
@@ -118,8 +157,12 @@ export default function App() {
 
   const resetData = () => {
     setTransactions([]);
+    setInvoices([]);
+    setOperatingExpenses([]);
     localStorage.removeItem('impulse_transactions');
-    setIsResetModalOpen(false);
+    localStorage.removeItem('impulse_invoices');
+    localStorage.removeItem('impulse_operating_expenses');
+    setIsSettingsModalOpen(false);
   };
 
   return (
@@ -136,16 +179,21 @@ export default function App() {
             />
           </div>
           <div>
-            <h1 className="text-3xl tracking-tighter text-white flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-white flex items-center gap-2 tracking-normal">
               Impulse 
+              {profile?.isSubscribed && (
+                <span className="bg-apple-green/20 text-apple-green text-[8px] px-2 py-0.5 rounded-full border border-apple-green/30 uppercase font-black tracking-widest">
+                  Premium
+                </span>
+              )}
             </h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => setIsResetModalOpen(true)}
+            onClick={() => setIsSettingsModalOpen(true)}
             className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 hover:bg-apple-green/10 transition-colors group"
-            title="Configuración / Reiniciar"
+            title="Configuración"
           >
             <Settings className="w-5 h-5 text-white/20 group-hover:text-apple-green transition-colors" />
           </button>
@@ -242,6 +290,16 @@ export default function App() {
               <motion.div layoutId="nav-indicator" className="absolute bottom-1 w-1 h-1 rounded-full bg-white shadow-[0_0_10px_#fff]" />
             )}
           </button>
+
+          <button 
+            onClick={() => setIsProfileModalOpen(true)}
+            className="relative flex-1 h-full flex flex-col items-center justify-center gap-1 text-white/30 hover:text-white/60 transition-all duration-500 group active:scale-90"
+          >
+            <div className="p-2 rounded-xl bg-white/5 group-hover:bg-white/10 transition-colors">
+              <Crown className="w-5 h-5 text-apple-green" />
+            </div>
+            <span className="text-[7px] uppercase font-black tracking-[0.1em]">Premium</span>
+          </button>
         </nav>
       </div>
 
@@ -294,10 +352,22 @@ export default function App() {
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {isResetModalOpen && (
-          <ResetConfirmationModal 
-            onClose={() => setIsResetModalOpen(false)} 
-            onConfirm={resetData}
+        {isProfileModalOpen && (
+          <ProfileModal 
+            user={user}
+            onClose={() => setIsProfileModalOpen(false)}
+            onLogin={signInWithGoogle}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isSettingsModalOpen && (
+          <SettingsModal 
+            user={user}
+            onClose={() => setIsSettingsModalOpen(false)} 
+            onConfirmReset={resetData}
+            onLogin={signInWithGoogle}
+            onLogout={logout}
           />
         )}
       </AnimatePresence>
@@ -570,6 +640,8 @@ function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, o
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<any>(null);
 
+  const totalOpExp = operatingExpenses.reduce((acc: number, curr: any) => acc + (parseFloat(curr.amount) || 0), 0);
+
   const stats = invoices.reduce((acc: any, inv: any) => {
     if (inv.type === 'invoice') {
       acc.invoices++;
@@ -587,23 +659,33 @@ function InvoiceList({ invoices, operatingExpenses, onNew, onNewOpExp, onEdit, o
     return acc;
   }, { invoices: 0, quotes: 0, earnings: 0, abonos: 0, remaining: 0 });
 
-  const totalOpExp = operatingExpenses.reduce((acc: number, curr: any) => acc + (parseFloat(curr.amount) || 0), 0);
+  // Subtract operating expenses from earnings
+  stats.earnings -= totalOpExp;
 
   const getProfitChartData = () => {
-    const sorted = [...invoices]
+    const invoiceProfits = invoices
       .filter(inv => inv.type === 'invoice')
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .map(inv => {
+        const profit = inv.items.reduce((acc: number, item: any) => {
+          const unit = parseFloat(item.unitPrice) || 0;
+          const cost = parseFloat(item.costPrice) || 0;
+          return acc + (item.quantity * (unit - cost));
+        }, 0);
+        return { date: new Date(inv.date), amount: profit };
+      });
+
+    const expenses = operatingExpenses.map(exp => ({
+      date: new Date(exp.date),
+      amount: -parseFloat(exp.amount) || 0
+    }));
+
+    const allEvents = [...invoiceProfits, ...expenses].sort((a, b) => a.date.getTime() - b.date.getTime());
     
     let cumulativeProfit = 0;
-    return sorted.map(inv => {
-      const profit = inv.items.reduce((acc: number, item: any) => {
-        const unit = parseFloat(item.unitPrice) || 0;
-        const cost = parseFloat(item.costPrice) || 0;
-        return acc + (item.quantity * (unit - cost));
-      }, 0);
-      cumulativeProfit += profit;
+    return allEvents.map(event => {
+      cumulativeProfit += event.amount;
       return {
-        date: format(new Date(inv.date), 'dd/MM'),
+        date: format(event.date, 'dd/MM'),
         profit: cumulativeProfit
       };
     });
@@ -1695,7 +1777,225 @@ function TransactionItem({ transaction, showDate, onClick }: any) {
   );
 }
 
-function ResetConfirmationModal({ onClose, onConfirm }: { onClose: () => void, onConfirm: () => void }) {
+function ProfileModal({ user, onClose, onLogin }: any) {
+  const [profile, setProfile] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    isSubscribed: false
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      const fetchProfile = async () => {
+        try {
+          const docRef = doc(db, 'users', user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setProfile(docSnap.data() as any);
+          }
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+        }
+        setLoading(false);
+      };
+      fetchProfile();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+      alert('Perfil actualizado correctamente');
+    } catch (error) {
+      console.error(error);
+      alert('Error al guardar el perfil');
+    }
+    setSaving(false);
+  };
+
+  const handleSubscribe = async () => {
+    if (!user) return;
+    if (!profile.firstName || !profile.lastName || !profile.phone) {
+      alert('Por favor completa tus datos antes de suscribirte');
+      return;
+    }
+    setSaving(true);
+    try {
+      const updatedProfile = { ...profile, isSubscribed: true };
+      await setDoc(doc(db, 'users', user.uid), updatedProfile, { merge: true });
+      setProfile(updatedProfile);
+      alert('¡Suscripción activada con éxito!');
+    } catch (error) {
+      console.error(error);
+      alert('Error al procesar la suscripción');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md p-6"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="w-full max-w-md glass-card p-8 space-y-8 relative overflow-hidden"
+      >
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-2xl font-bold tracking-tight text-white">Premium</h3>
+            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1">Suscripción y Perfil</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {!user ? (
+          <div className="text-center space-y-6 py-8">
+            <div className="w-20 h-20 bg-apple-green/10 rounded-full flex items-center justify-center mx-auto">
+              <Crown className="w-10 h-10 text-apple-green" />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-lg font-bold text-white">Únete a Impulse Premium</h4>
+              <p className="text-white/40 text-sm">Inicia sesión para registrarte y obtener acceso a todas las funciones.</p>
+            </div>
+            <button 
+              onClick={onLogin}
+              className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-bold uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3"
+            >
+              <UserPlus className="w-5 h-5 text-apple-green" />
+              Registrarse / Iniciar Sesión
+            </button>
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-apple-green animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Profile Form */}
+            <form onSubmit={handleSave} className="space-y-4">
+              <p className="text-[10px] uppercase font-bold tracking-widest text-white/40">Datos del Usuario</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Nombre</label>
+                  <input 
+                    type="text"
+                    required
+                    value={profile.firstName}
+                    onChange={e => setProfile({ ...profile, firstName: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-xs text-white focus:outline-none focus:border-apple-green/50 transition-colors"
+                    placeholder="Nombre"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Apellido</label>
+                  <input 
+                    type="text"
+                    required
+                    value={profile.lastName}
+                    onChange={e => setProfile({ ...profile, lastName: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-xs text-white focus:outline-none focus:border-apple-green/50 transition-colors"
+                    placeholder="Apellido"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Número Celular</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                  <input 
+                    type="tel"
+                    required
+                    value={profile.phone}
+                    onChange={e => setProfile({ ...profile, phone: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-xs text-white focus:outline-none focus:border-apple-green/50 transition-colors"
+                    placeholder="Ej: +57 300 123 4567"
+                  />
+                </div>
+              </div>
+              <button 
+                type="submit"
+                disabled={saving}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/60 font-bold uppercase tracking-widest text-[10px] transition-all"
+              >
+                {saving ? 'Guardando...' : 'Actualizar Datos'}
+              </button>
+            </form>
+
+            {/* Subscription Section */}
+            <div className="space-y-4 pt-4 border-t border-white/5">
+              <p className="text-[10px] uppercase font-bold tracking-widest text-white/40">Suscripción</p>
+              
+              {profile.isSubscribed ? (
+                <div className="p-6 bg-apple-green/10 border border-apple-green/20 rounded-2xl flex items-center gap-4">
+                  <div className="w-12 h-12 bg-apple-green rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-premium-black" />
+                  </div>
+                  <div>
+                    <h4 className="text-apple-green font-bold">Plan Premium Activo</h4>
+                    <p className="text-[10px] text-apple-green/60 uppercase font-bold tracking-widest">Suscripción Mensual</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-white font-bold">Plan Mensual</h4>
+                      <p className="text-white/40 text-xs">Acceso ilimitado a todas las herramientas</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-white">$9.99</p>
+                      <p className="text-[8px] text-white/40 uppercase font-bold tracking-widest">Al mes</p>
+                    </div>
+                  </div>
+                  <ul className="space-y-2">
+                    {['Facturación Ilimitada', 'Estadísticas Avanzadas', 'Soporte Prioritario'].map((item, i) => (
+                      <li key={i} className="flex items-center gap-2 text-[10px] text-white/60">
+                        <CheckCircle2 className="w-3 h-3 text-apple-green" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <button 
+                    onClick={handleSubscribe}
+                    disabled={saving}
+                    className="w-full py-4 apple-gradient rounded-xl text-premium-black font-bold uppercase tracking-widest text-xs shadow-lg shadow-apple-green/20 flex items-center justify-center gap-2"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    {saving ? 'Procesando...' : 'Comprar Suscripción'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <button 
+          onClick={onClose}
+          className="w-full py-4 bg-white/5 rounded-2xl text-white/60 font-bold uppercase tracking-widest text-xs"
+        >
+          Cerrar
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function SettingsModal({ user, onClose, onConfirmReset, onLogin, onLogout }: any) {
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -1707,29 +2007,74 @@ function ResetConfirmationModal({ onClose, onConfirm }: { onClose: () => void, o
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="w-full max-w-xs glass-card p-8 text-center space-y-6 border-red-500/20"
+        className="w-full max-w-sm glass-card p-8 space-y-8"
       >
-        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
-          <X className="w-8 h-8 text-red-500" />
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-xl font-bold tracking-tight text-white">¿Borrar todo?</h2>
-          <p className="text-white/40 text-sm">Esta acción eliminará permanentemente todas tus transacciones y reiniciará el balance a $0.00.</p>
-        </div>
-        <div className="flex flex-col gap-3">
-          <button 
-            onClick={onConfirm}
-            className="w-full py-4 bg-red-500 rounded-2xl text-white font-bold uppercase tracking-widest text-xs shadow-lg shadow-red-500/20"
-          >
-            Sí, borrar todo
-          </button>
-          <button 
-            onClick={onClose}
-            className="w-full py-4 bg-white/5 rounded-2xl text-white/60 font-bold uppercase tracking-widest text-xs"
-          >
-            Cancelar
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold tracking-tight text-white">Configuración</h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-white/20 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* User Section */}
+        <div className="space-y-4">
+          <p className="text-[10px] uppercase font-bold tracking-widest text-white/40">Usuario</p>
+          {user ? (
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
+              <div className="flex items-center gap-3">
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt={user.displayName || ''} className="w-10 h-10 rounded-full" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-apple-green/20 flex items-center justify-center">
+                    <UserIcon className="w-5 h-5 text-apple-green" />
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-bold text-white">{user.displayName || 'Usuario'}</p>
+                  <p className="text-[10px] text-white/40">{user.email}</p>
+                </div>
+              </div>
+              <button 
+                onClick={onLogout}
+                className="p-2 hover:bg-red-500/10 rounded-xl text-red-500 transition-colors"
+                title="Cerrar Sesión"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={onLogin}
+              className="w-full flex items-center justify-center gap-3 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-bold uppercase tracking-widest text-[10px] transition-all"
+            >
+              <UserPlus className="w-5 h-5 text-apple-green" />
+              Registrarse / Iniciar Sesión
+            </button>
+          )}
+        </div>
+
+        {/* Data Section */}
+        <div className="space-y-4">
+          <p className="text-[10px] uppercase font-bold tracking-widest text-white/40">Datos y Privacidad</p>
+          <button 
+            onClick={() => {
+              if (confirm('¿Estás seguro de que deseas borrar todo el historial? Esta acción no se puede deshacer.')) {
+                onConfirmReset();
+              }
+            }}
+            className="w-full flex items-center justify-center gap-3 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-red-500 font-bold uppercase tracking-widest text-[10px] transition-all"
+          >
+            <Trash2 className="w-5 h-5" />
+            Borrar Todo el Historial
+          </button>
+        </div>
+
+        <button 
+          onClick={onClose}
+          className="w-full py-4 bg-white/5 rounded-2xl text-white/60 font-bold uppercase tracking-widest text-xs"
+        >
+          Cerrar
+        </button>
       </motion.div>
     </motion.div>
   );
@@ -1741,7 +2086,16 @@ function AddTransactionModal({ onClose, onAdd, initialData }: any) {
   const [type, setType] = useState<'income' | 'expense'>(initialData ? initialData.type : 'expense');
   const [category, setCategory] = useState(initialData ? initialData.category : 'General');
 
-  const categories = ['General', 'Comida', 'Transporte', 'Salud', 'Vivienda', 'Ocio', 'Salario', 'Otros'];
+  const categories = [
+    { name: 'General', icon: FileText },
+    { name: 'Comida', icon: Utensils },
+    { name: 'Transporte', icon: Car },
+    { name: 'Salud', icon: HeartPulse },
+    { name: 'Vivienda', icon: Home },
+    { name: 'Ocio', icon: Gamepad2 },
+    { name: 'Salario', icon: DollarSign },
+    { name: 'Otros', icon: MoreHorizontal }
+  ];
 
   const handleAdd = () => {
     const parsedAmount = parseFloat(amount);
@@ -1819,13 +2173,14 @@ function AddTransactionModal({ onClose, onAdd, initialData }: any) {
               <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                 {categories.map(cat => (
                   <button
-                    key={cat}
-                    onClick={() => setCategory(cat)}
-                    className={`px-4 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest whitespace-nowrap transition-all border ${
-                      category === cat ? 'bg-apple-green text-premium-black border-apple-green' : 'bg-white/5 text-white/40 border-white/10'
+                    key={cat.name}
+                    onClick={() => setCategory(cat.name)}
+                    className={`px-4 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest whitespace-nowrap transition-all border flex items-center gap-2 ${
+                      category === cat.name ? 'bg-apple-green text-premium-black border-apple-green' : 'bg-white/5 text-white/40 border-white/10'
                     }`}
                   >
-                    {cat}
+                    <cat.icon className="w-3 h-3" />
+                    {cat.name}
                   </button>
                 ))}
               </div>

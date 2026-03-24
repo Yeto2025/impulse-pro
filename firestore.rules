@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Transactions
+    match /transactions/{transactionId} {
+      allow read, write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Invoices
+    match /invoices/{invoiceId} {
+      allow read, write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Operating Expenses
+    match /operatingExpenses/{expenseId} {
+      allow read, write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}
